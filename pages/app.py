@@ -12,10 +12,9 @@ if "usuario" not in st.session_state:
     st.warning("⚠️ Você precisa fazer login para acessar o sistema.")
     st.page_link("login.py", label="Ir para Login", icon="🔑")
     st.stop()
+
+# Dados e Funções
 
-# ========================
-# 🔹 Dados e Funções
-# ========================
 @st.cache_resource
 def carregar_dados():
     filmes = pd.read_csv("pages/movies.csv")
@@ -54,24 +53,26 @@ def treinar_modelo_filmes(df_movies, df_ratings_full):
     autoencoder.fit(X_train, X_train, epochs=5, batch_size=16, validation_data=(X_test, X_test), verbose=0)
 
     return autoencoder, u2idx, idx2i, M, df_movies
-
-# ========================
+
 #  Interface principal
-# ========================
-st.sidebar.title(f"👋 Olá, {st.session_state['usuario'][1]}")
+
+st.sidebar.title(f" Olá, {st.session_state['usuario'][1]}")
 if st.sidebar.button("Sair"):
     st.session_state.clear()
     st.switch_page("../login.py")
 
 # Carregar dados
+
 filmes, df_music = carregar_dados()
 
 # Tabs
-abas = st.tabs(["🎬 Filmes", "🎵 Músicas"])
 
-# --- FILMES ---
+abas = st.tabs([" Filmes", " Músicas"])
+
+# FILMES 
+
 with abas[0]:
-    st.subheader("🎬 Recomendador de Filmes")
+    st.subheader(" Recomendador de Filmes")
 
     # Barra de pesquisa por gênero
     generos = sorted(set(g.strip() for sublist in filmes['genres'].str.split('|') for g in sublist))
@@ -84,11 +85,13 @@ with abas[0]:
             recs_filmes = filmes.sample(10)
         st.dataframe(recs_filmes[['title', 'genres']])
 
-# --- MÚSICAS ---
-with abas[1]:
-    st.subheader("🎵 Recomendador de Músicas")
+# MÚSICAS 
 
-    # Barra de pesquisa por artista
+with abas[1]:
+    st.subheader(" Recomendador de Músicas")
+
+# Barra de pesquisa por artista
+
     artistas = sorted(df_music['Artist'].unique())
     artista_selecionado = st.selectbox("Filtrar por artista:", ["Todos"] + artistas)
 
