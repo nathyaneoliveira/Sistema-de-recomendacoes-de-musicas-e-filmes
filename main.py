@@ -6,10 +6,9 @@ from scipy.sparse import csr_matrix
 from sklearn.model_selection import train_test_split
 from tensorflow.keras import layers, models
 from tkinter import ttk, messagebox
+
+# Carregamento dos dados Spotify_Youtube
 
-# -----------------------------
-# 1. Carregamento dos dados Spotify_Youtube
-# -----------------------------
 df_music = pd.read_csv("pages/Spotify_Youtube.csv")
 
 # Selecionar colunas principais
@@ -38,18 +37,16 @@ df_ratings = pd.concat(df_ratings, ignore_index=True)
 u2idx = {u: i for i, u in enumerate(user_ids)}
 i2idx = {i: j for j, i in enumerate(df_music.index)}
 idx2i = {v: k for k, v in i2idx.items()}
+
+# Criar matriz usuário-item
 
-# -----------------------------
-# 2. Criar matriz usuário-item
-# -----------------------------
 rows = df_ratings['userId'].map(u2idx)
 cols = df_ratings.index.map(lambda x: x % len(df_music))
 data = df_ratings['binary_rating'].values
 M = csr_matrix((data, (rows, cols)), shape=(len(user_ids), len(df_music))).toarray()
+
+# AutoEncoder
 
-# -----------------------------
-# 3. AutoEncoder
-# -----------------------------
 n_items = M.shape[1]
 
 input_layer = layers.Input(shape=(n_items,))
@@ -69,10 +66,9 @@ autoencoder.fit(
     validation_data=(X_test, X_test),
     verbose=0
 )
+
+# Função de recomendação
 
-# -----------------------------
-# 4. Função de recomendação
-# -----------------------------
 def recommend_autoencoder(user_id, topk=50):
     if user_id not in u2idx:
         populares = df_music.sort_values("Views", ascending=False).head(topk)
@@ -89,10 +85,9 @@ def recommend_autoencoder(user_id, topk=50):
     recommended_idx = [idx2i[i] for i in recs_idx]
     recs = df_music.loc[recommended_idx][['Track', 'Artist', 'Views']]
     return recs
+
+# Banco de dados usuários
 
-# -----------------------------
-# 5. Banco de dados usuários
-# -----------------------------
 def init_db():
     conn = sqlite3.connect("pages/usuarios.db")
     cursor = conn.cursor()
@@ -134,112 +129,5 @@ def resetar_tabela_usuarios():
     conn.commit()
     conn.close()
 
-# -----------------------------
-# 6. Interfaces Tkinter
-# -----------------------------
-def abrir_tela_recomendacao(usuario):
-    tela_login.destroy()
-    rec_window = tk.Tk()
-    rec_window.title("Sistema de Recomendação de Músicas")
-    rec_window.geometry("600x500")
 
-    ttk.Label(rec_window, text=f"Bem-vindo, {usuario[1]}!", font=("Arial", 14)).pack(pady=10)
 
-    ttk.Label(rec_window, text="Artista preferido (opcional):").pack(pady=2)
-    entry_artista = ttk.Entry(rec_window)
-    entry_artista.pack(pady=2)
-
-    text_result = tk.Text(rec_window, wrap="word", height=20, width=70)
-    text_result.pack(pady=10)
-
-    def recomendar_com_filtro():
-        user_id = usuario[0]
-        artista = entry_artista.get().strip().lower()
-
-        recs = recommend_autoencoder(user_id, topk=50)
-
-        if artista:
-            recs = recs[recs['Artist'].str.lower().str.contains(artista)]
-
-        if not recs.empty:
-            recs = recs.sample(n=min(5, len(recs)), replace=False, random_state=None)
-
-        text_result.delete("1.0", tk.END)
-        text_result.insert(tk.END, " Músicas recomendadas:\n\n")
-        if recs.empty:
-            text_result.insert(tk.END, "Nenhuma música encontrada com esses filtros.\n")
-        else:
-            for _, row in recs.iterrows():
-                text_result.insert(tk.END, f"- {row['Track']} | {row['Artist']} \n")
-
-    ttk.Button(rec_window, text="Recomendar", command=recomendar_com_filtro).pack(pady=5)
-    rec_window.mainloop()
-
-def abrir_tela_cadastro():
-    def cadastrar():
-        nome = entry_nome.get()
-        email = entry_email.get()
-        senha = entry_senha.get()
-
-        if nome and email and senha:
-            if cadastrar_usuario(nome, email, senha):
-                messagebox.showinfo("Sucesso", "Usuário cadastrado com sucesso!")
-                cadastro_window.destroy()
-            else:
-                messagebox.showerror("Erro", "Email já cadastrado!")
-        else:
-            messagebox.showwarning("Atenção", "Preencha todos os campos.")
-
-    cadastro_window = tk.Toplevel(tela_login)
-    cadastro_window.title("Cadastro")
-    cadastro_window.geometry("400x300")
-
-    ttk.Label(cadastro_window, text="Nome:").pack(pady=5)
-    entry_nome = ttk.Entry(cadastro_window)
-    entry_nome.pack(pady=5)
-
-    ttk.Label(cadastro_window, text="Email:").pack(pady=5)
-    entry_email = ttk.Entry(cadastro_window)
-    entry_email.pack(pady=5)
-
-    ttk.Label(cadastro_window, text="Senha:").pack(pady=5)
-    entry_senha = ttk.Entry(cadastro_window, show="*")
-    entry_senha.pack(pady=5)
-
-    btn_cadastrar = ttk.Button(cadastro_window, text="Cadastrar", command=cadastrar)
-    btn_cadastrar.pack(pady=10)
-
-def fazer_login():
-    email = entry_email.get()
-    senha = entry_senha.get()
-
-    user = validar_login(email, senha)
-    if user:
-        abrir_tela_recomendacao(user)
-    else:
-        messagebox.showerror("Erro", "Email ou senha inválidos!")
-
-# -----------------------------
-# 7. Tela de Login principal
-# -----------------------------
-init_db()
-
-tela_login = tk.Tk()
-tela_login.title("Login - Sistema de Recomendação")
-tela_login.geometry("400x250")
-
-ttk.Label(tela_login, text="Email:").pack(pady=5)
-entry_email = ttk.Entry(tela_login)
-entry_email.pack(pady=5)
-
-ttk.Label(tela_login, text="Senha:").pack(pady=5)
-entry_senha = ttk.Entry(tela_login, show="*")
-entry_senha.pack(pady=5)
-
-btn_login = ttk.Button(tela_login, text="Login", command=fazer_login)
-btn_login.pack(pady=10)
-
-btn_cadastro = ttk.Button(tela_login, text="Cadastrar", command=abrir_tela_cadastro)
-btn_cadastro.pack(pady=5)
-
-tela_login.mainloop()
